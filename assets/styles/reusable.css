@@ -1,0 +1,57 @@
+.btn-primary {
+  background-color: var(--dark-blue);
+  color: white;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 4px;
+  display: block;
+}
+
+.modal-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(17, 45, 78, 0.5);
+}
+
+.modal-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: fit-content;
+}
+
+.close-modal {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  padding: 0;
+}
+.close-modal svg {
+  width: 28px;
+  height: 28px;
+  fill: var(--dark-blue);
+}
+
+.empty-book {
+  font-weight: 700;
+  font-size: 18px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  line-height: normal;
+  color: var(--dark-blue);
+  border-bottom: 4px solid var(--dark-blue);
+  padding-bottom: 8px;
+}
+
+.visited-tab {
+  border-bottom: 4px solid var(--dark-blue);
+}
+.unvisited-tab {
+  border-bottom: 4px solid transparent;
+}
