@@ -1,4 +1,4 @@
-function BookForm(title = "", author = "", year = "", isComplete = false) {
+function BookForm(title = "", author = "", year, isComplete = false) {
   const checked = isComplete ? "checked" : "";
   const formEl = document.createElement("form");
   formEl.setAttribute("class", "book-form-modal");
@@ -74,7 +74,7 @@ function CreateBookItemChild(title, author, year) {
     <div>
       <h2 class="title">${title}</h2>
       <div class="author">
-        <address><span>${author}</span></address>
+        <address>${author}</address>
         <time datetime="${year}">${year}</time>
       </div>
 
@@ -154,13 +154,13 @@ function addBook() {
   formEl.addEventListener("submit", (event) => {
     event.preventDefault();
     const newBook = {
+      id: new Date().getTime(),
       title: document.getElementById("title").value,
       author: document.getElementById("author").value,
       year: Number(document.getElementById("year").value),
       isComplete: document.getElementById("isComplete").checked,
     };
 
-    newBook.id = new Date().getTime();
     const bookListEl = document.getElementsByClassName("book-list")[0];
     const isEmpty = checkEmptyBook();
 
@@ -189,17 +189,14 @@ function addBook() {
 }
 
 function updateBook(event) {
-  const selectedBook =
-    event.currentTarget.parentElement.parentElement.parentElement;
+  const bookEl = event.currentTarget.parentElement.parentElement.parentElement;
   const bookList = JSON.parse(localStorage.getItem("books"));
-  let updatedBook = bookList.find(
-    (book) => book.id === Number(selectedBook.id)
-  );
+  let updatedBook = bookList.find(({ id }) => id === Number(bookEl.id));
 
   const formEl = BookForm(
     updatedBook.title,
     updatedBook.author,
-    String(updatedBook.year),
+    updatedBook.year,
     updatedBook.isComplete
   );
   openModal(formEl);
@@ -215,77 +212,104 @@ function updateBook(event) {
 
     const isProgressChanged = updatedBook.isComplete !== newBook.isComplete;
     const bookListEl = document.getElementsByClassName("book-list")[0];
-    const currBookEl = document.getElementById(selectedBook.id);
     updatedBook = { id: updatedBook.id, ...newBook };
 
+    bookListEl.removeChild(bookEl);
     if (!isProgressChanged) {
       const updatedBookCard = CreateBookCard(updatedBook);
-      if (currBookEl.nextElementSibling !== null) {
-        bookListEl.insertBefore(updatedBookCard, currBookEl.nextElementSibling);
-      } else if (currBookEl.nextElementSibling === null) {
+      if (bookEl.nextElementSibling !== null) {
+        bookListEl.insertBefore(updatedBookCard, bookEl.nextElementSibling);
+      } else if (bookEl.nextElementSibling === null) {
         bookListEl.appendChild(updatedBookCard);
       }
     }
-    bookListEl.removeChild(currBookEl);
 
-    const bookIndex = bookList.findIndex(
-      ({ id }) => id === Number(selectedBook.id)
+    const updatedBookIndex = bookList.findIndex(
+      ({ id }) => id === Number(bookEl.id)
     );
-    bookList.splice(bookIndex, 1, updatedBook);
+    bookList.splice(updatedBookIndex, 1, updatedBook);
     localStorage.setItem("books", JSON.stringify(bookList));
-
     formEl.reset();
     closeModal();
   });
 }
 
 function deleteBook(event) {
-  const selectedBook =
-    event.currentTarget.parentElement.parentElement.parentElement;
+  const bookEl = event.currentTarget.parentElement.parentElement.parentElement;
   const bookList = JSON.parse(localStorage.getItem("books"));
-  let deletedBook = bookList.find(
-    (book) => book.id === Number(selectedBook.id)
-  );
+  const deletedBook = bookList.find(({ id }) => id === Number(bookEl.id));
 
-  const divEl = DeleteBookAlert(deletedBook.title);
-  openModal(divEl);
+  const alertModal = DeleteBookAlert(deletedBook.title);
+  openModal(alertModal);
 
-  divEl.lastElementChild.addEventListener("click", () => {
-    const bookIndex = bookList.findIndex(
-      ({ id }) => id === Number(selectedBook.id)
+  alertModal.lastElementChild.addEventListener("click", () => {
+    const deletedBookIndex = bookList.findIndex(
+      ({ id }) => id === Number(bookEl.id)
     );
 
-    bookList.splice(bookIndex, 1);
+    document.getElementsByClassName("book-list")[0].removeChild(bookEl);
     if (bookList.length === 1) {
-      localStorage.removeItem("books");
       renderEmptyBook("Ups! you don't have any book list here");
+      localStorage.removeItem("books");
     } else {
+      bookList.splice(deletedBookIndex, 1);
       localStorage.setItem("books", JSON.stringify(bookList));
     }
-
-    document.getElementsByClassName("book-list")[0].removeChild(selectedBook);
     closeModal();
   });
 }
 
-function disableScroll() {
-  window.scrollTo(0, 0);
-  window.onscroll = () => window.scrollTo(0, 0);
-}
+function searchBook(event) {
+  event.preventDefault();
+  const bookList = JSON.parse(localStorage.getItem("books"));
+  const searchInputEl = event.currentTarget.lastElementChild;
 
-function enableScroll() {
-  window.onscroll = () => {};
+  if (bookList === null) {
+    searchInputEl.setCustomValidity("Cannot search if there is no books");
+    searchInputEl.reportValidity();
+    event.currentTarget.reset();
+    return;
+  }
+
+  const bookListEl = document.getElementsByClassName("book-list")[0];
+  const tabView = getTabView();
+
+  while (bookListEl.firstElementChild instanceof HTMLElement) {
+    bookListEl.removeChild(bookListEl.firstElementChild);
+  }
+
+  for (const book of bookList) {
+    if (tabView === "completed") {
+      if (!book.isComplete) continue;
+    } else {
+      if (book.isComplete) continue;
+    }
+
+    const lowerCaseTitle = book.title.toLowerCase();
+    const isMatched = lowerCaseTitle.includes(searchInputEl.value.trim());
+    if (!isMatched) continue;
+
+    const searchedBookCard = CreateBookCard(book);
+    bookListEl.appendChild(searchedBookCard);
+  }
+
+  if (bookListEl.childElementCount === 0)
+    return renderEmptyBook(
+      `Ups! There is no book with the title of "${searchInputEl.value}"`
+    );
+  event.currentTarget.reset();
 }
 
 function openModal(modalItem) {
-  disableScroll();
+  window.scrollTo(0, 0);
+  window.onscroll = () => window.scrollTo(0, 0);
   const modalContainer = document.getElementsByClassName("modal-container")[0];
   modalContainer.parentElement.removeAttribute("hidden");
   modalContainer.insertBefore(modalItem, modalContainer.firstElementChild);
 }
 
 function closeModal() {
-  enableScroll();
+  window.onscroll = () => {};
   const modalContainer = document.getElementsByClassName("modal-container")[0];
   modalContainer.removeChild(modalContainer.firstElementChild);
   modalContainer.parentElement.setAttribute("hidden", "");
@@ -294,7 +318,6 @@ function closeModal() {
 function getTabView() {
   const tabView = localStorage.getItem("tabView");
   if (tabView !== null) return tabView;
-
   localStorage.setItem("tabView", "completed");
   return localStorage.getItem("tabView");
 }
@@ -314,8 +337,10 @@ const tabView = getTabView();
 renderBooks(tabView);
 if (tabView === "completed") {
   completedTab.classList.add("visited-tab");
+  uncompletedTab.classList.add("unvisited-tab");
 } else {
   uncompletedTab.classList.add("visited-tab");
+  completedTab.classList.add("unvisited-tab");
 }
 
 completedTab.addEventListener("click", () => {
@@ -329,44 +354,8 @@ uncompletedTab.addEventListener("click", () => {
 
 const addBookBtn = document.getElementsByClassName("add-book-btn")[0];
 const closeModalBtn = document.getElementsByClassName("close-modal")[0];
+const searchForm = document.getElementsByClassName("search-form")[0];
 
 addBookBtn.addEventListener("click", addBook);
 closeModalBtn.addEventListener("click", closeModal);
-
-const searchForm = document.getElementsByClassName("search-form")[0];
-searchForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const searchedBook = document.getElementById("search");
-  const bookList = JSON.parse(localStorage.getItem("books"));
-
-  const bookListEl = document.getElementsByClassName("book-list")[0];
-  const tabView = getTabView();
-  while (bookListEl.firstElementChild instanceof HTMLElement) {
-    bookListEl.removeChild(bookListEl.firstElementChild);
-  }
-
-  for (const book of bookList) {
-    if (tabView === "completed") {
-      if (!book.isComplete) continue;
-    } else {
-      if (book.isComplete) continue;
-    }
-
-    const lowerCaseTitle = book.title.toLowerCase();
-    const isMatched = lowerCaseTitle.includes(searchedBook.value.trim());
-    const searchedBookCard = CreateBookCard(book);
-
-    if (!isMatched) continue;
-    if (tabView === "completed" && book.isComplete) {
-      bookListEl.appendChild(searchedBookCard);
-    } else if (tabView === "uncompleted" && !book.isComplete) {
-      bookListEl.appendChild(searchedBookCard);
-    }
-  }
-
-  if (bookListEl.childElementCount === 0)
-    return renderEmptyBook(
-      `Ups! There is no book with the title of "${searchedBook.value}"`
-    );
-  searchForm.reset();
-});
+searchForm.addEventListener("submit", searchBook);
